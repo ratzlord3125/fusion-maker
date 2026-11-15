@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en" data-layout="portrait">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4c1d95">
+  <meta name="description" content="Join parts of your karaoke videos into one fusion, right on your phone. Nothing is uploaded.">
+  <title>Fusion Maker</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">{ "imports": { "mediabunny": "./vendor/mediabunny.min.mjs" } }</script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <button type="button" class="icon-btn on-dark" id="btn-menu" data-icon="folder" aria-label="My fusions"></button>
+      <div class="name-wrap">
+        <input id="project-name" class="project-name" type="text" maxlength="60" autocomplete="off" enterkeyhint="done" aria-label="Name of this fusion">
+        <span id="save-state" class="save-state" aria-live="polite">Saved</span>
+      </div>
+      <button type="button" class="icon-btn on-dark" id="btn-help" data-icon="help" aria-label="Help"></button>
+    </header>
+
+    <nav class="steps" aria-label="Steps">
+      <button type="button" class="step" data-step="songs"><span class="step-num">1</span><span class="step-label">Songs</span></button>
+      <button type="button" class="step" data-step="joins"><span class="step-num">2</span><span class="step-label">Joins</span></button>
+      <button type="button" class="step" data-step="finish"><span class="step-num">3</span><span class="step-label">Finish</span></button>
+    </nav>
+
+    <main>
+      <div id="notice" class="notice" hidden></div>
+
+      <!-- Step 1 -->
+      <section class="view" id="view-songs">
+        <div class="col">
+          <div class="card">
+            <h2>Add your songs</h2>
+            <p class="hint">Choose the karaoke videos saved on this phone. You can choose several at once.</p>
+            <button type="button" class="btn primary big" id="btn-pick" data-icon="plus">Choose videos</button>
+            <button type="button" class="link-btn" id="btn-pick-any">Can't see your video? Look in all files</button>
+            <input type="file" id="pick-videos" accept="video/*" multiple hidden>
+            <input type="file" id="pick-any" multiple hidden>
+            <input type="file" id="pick-again" multiple hidden>
+          </div>
+          <div class="card" id="tips">
+            <h3>How it works</h3>
+            <ol class="plain-steps">
+              <li>Add your songs.</li>
+              <li>Tap <b>Trim</b> on a song to keep only the part you want.</li>
+              <li>Choose how the songs join, then make your fusion.</li>
+            </ol>
+            <p class="hint">Your videos stay on this phone. Nothing is sent anywhere.</p>
+          </div>
+        </div>
+        <div class="col">
+          <div class="list-head">
+            <h2>Your songs</h2>
+            <span id="songs-summary" class="muted"></span>
+          </div>
+          <div id="songs-empty" class="empty">No songs yet. Tap <b>Choose videos</b> to begin.</div>
+          <div id="song-list"></div>
+          <button type="button" class="btn primary next" data-goto="joins" id="next-joins">Next: how songs join</button>
+        </div>
+      </section>
+
+      <!-- Step 2 -->
+      <section class="view" id="view-joins" hidden>
+        <div class="col">
+          <div class="card">
+            <h2>How should one song change to the next?</h2>
+            <p class="hint">This is used between every two songs.</p>
+            <div id="joins-styles"></div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card" id="joins-rest"></div>
+          <div class="card">
+            <label class="switch-row"><input type="checkbox" id="opt-shownext"><span>Show the next song's name on screen just before each change</span></label>
+          </div>
+          <p class="hint pad">To make one join different from the others, go back to <b>Songs</b> and tap the bar between two songs.</p>
+          <button type="button" class="btn primary next" data-goto="finish">Next: make the fusion</button>
+        </div>
+      </section>
+
+      <!-- Step 3 -->
+      <section class="view" id="view-finish" hidden>
+        <div class="col">
+          <div class="card">
+            <h2>What would you like to make?</h2>
+            <div class="choice-grid two" id="kind-choices">
+              <button type="button" class="choice" data-kind="video" data-icon="film"><b>Video</b><span>Picture and sound</span></button>
+              <button type="button" class="choice" data-kind="audio" data-icon="music"><b>Sound only</b><span>A music file (MP3)</span></button>
+            </div>
+          </div>
+          <details class="card more">
+            <summary>More choices</summary>
+            <div class="field" id="quality-field">
+              <h3>Video size</h3>
+              <div class="seg" id="quality-choices" role="group">
+                <button type="button" data-quality="720">Best picture</button>
+                <button type="button" data-quality="480">Smaller file</button>
+              </div>
+            </div>
+            <label class="switch-row"><input type="checkbox" id="opt-balance"><span>Make all songs equally loud</span></label>
+            <label class="switch-row"><input type="checkbox" id="opt-fadein"><span>Begin gently (fade in)</span></label>
+            <label class="switch-row"><input type="checkbox" id="opt-fadeout"><span>End gently (fade out)</span></label>
+          </details>
+        </div>
+        <div class="col">
+          <div class="card" id="make-card">
+            <p id="make-summary" class="summary"></p>
+            <button type="button" class="btn accent huge" id="btn-make">Make my fusion</button>
+            <p class="hint" id="make-hint"></p>
+          </div>
+
+          <div class="card" id="progress-card" hidden>
+            <h2 id="progress-stage">Getting ready</h2>
+            <canvas id="render-canvas" width="640" height="360"></canvas>
+            <div class="bar big"><i id="progress-bar"></i></div>
+            <p id="progress-text" class="summary">0%</p>
+            <p class="hint warn" data-icon="warn">Keep this page open and the screen on until it has finished.</p>
+            <button type="button" class="btn" id="btn-stop">Stop</button>
+          </div>
+
+          <div class="card" id="result-card" hidden>
+            <h2 data-icon="check" class="ok-title">Your fusion is ready</h2>
+            <p class="hint warn" id="result-stale" hidden>You changed something after this was made. Tap <b>Make my fusion</b> again to update it.</p>
+            <div id="result-player"></div>
+            <p id="result-info" class="muted"></p>
+            <a class="btn accent big" id="btn-save" data-icon="download">Save to this phone</a>
+            <button type="button" class="btn big" id="btn-share" data-icon="share" hidden>Send or share</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Trim screen -->
+  <div class="modal full" id="modal-trim" hidden>
+    <div class="trim">
+      <div class="trim-stage">
+        <video id="trim-video" playsinline webkit-playsinline preload="auto"></video>
+        <p id="trim-note" class="trim-note" hidden></p>
+      </div>
+      <div class="trim-panel">
+        <div class="trim-top">
+          <h2>Choose the part to keep</h2>
+          <button type="button" class="btn primary" data-close data-icon="check">Done</button>
+        </div>
+        <p class="hint">Play the song. Tap <b>Start here</b> where your part should begin and <b>End here</b> where it should stop.</p>
+
+        <div class="timeline">
+          <div class="tl-track" id="trim-track">
+            <div class="tl-sel" id="trim-sel"></div>
+            <div class="tl-head" id="trim-head"></div>
+            <button type="button" class="tl-handle start" id="trim-h-start" aria-label="Drag to move the start"></button>
+            <button type="button" class="tl-handle end" id="trim-h-end" aria-label="Drag to move the end"></button>
+          </div>
+          <div class="tl-times"><span>0:00</span><b id="trim-now">0:00.0</b><span id="trim-total">0:00</span></div>
+        </div>
+
+        <div class="transport">
+          <button type="button" class="btn" id="trim-back">&minus; 5 sec</button>
+          <button type="button" class="btn primary" id="trim-play"></button>
+          <button type="button" class="btn" id="trim-fwd">+ 5 sec</button>
+        </div>
+
+        <div class="marks">
+          <div class="mark" id="trim-start-box">
+            <div class="mark-head"><span>Start</span><b id="trim-start-time">0:00.0</b></div>
+            <button type="button" class="btn mark-set" id="trim-set-start">Start here</button>
+            <div class="nudge">
+              <button type="button" class="btn" id="trim-start-minus" aria-label="Start half a second earlier">&minus;</button>
+              <span>adjust</span>
+              <button type="button" class="btn" id="trim-start-plus" aria-label="Start half a second later">+</button>
+            </div>
+          </div>
+          <div class="mark" id="trim-end-box">
+            <div class="mark-head"><span>End</span><b id="trim-end-time">0:00.0</b></div>
+            <button type="button" class="btn mark-set" id="trim-set-end">End here</button>
+            <div class="nudge">
+              <button type="button" class="btn" id="trim-end-minus" aria-label="End half a second earlier">&minus;</button>
+              <span>adjust</span>
+              <button type="button" class="btn" id="trim-end-plus" aria-label="End half a second later">+</button>
+            </div>
+          </div>
+        </div>
+
+        <p id="trim-length" class="summary"></p>
+        <div class="row wrap">
+          <button type="button" class="btn" id="trim-play-part" data-icon="play">Play my part</button>
+          <button type="button" class="btn" id="trim-play-end" data-icon="play">Play the ending</button>
+          <button type="button" class="btn" id="trim-whole">Keep the whole song</button>
+        </div>
+
+        <label class="text-field">
+          <span>Song name (shown as "Up next")</span>
+          <input type="text" id="trim-title" maxlength="80" autocomplete="off" enterkeyhint="done">
+        </label>
+        <button type="button" class="btn primary big" data-close data-icon="check">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- One join -->
+  <div class="modal" id="modal-join" hidden>
+    <div class="sheet wide">
+      <div class="sheet-head">
+        <h2 id="join-title">This join</h2>
+        <button type="button" class="btn primary" data-close data-icon="check">Done</button>
+      </div>
+      <p class="hint" id="join-between"></p>
+      <div class="sheet-cols">
+        <div id="join-styles"></div>
+        <div>
+          <div id="join-rest"></div>
+          <div class="row wrap">
+            <button type="button" class="btn" id="join-preview" data-icon="eye">Preview this join</button>
+            <button type="button" class="btn" id="join-reset">Same as the other joins</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Join preview -->
+  <div class="modal" id="modal-preview" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>Preview of this join</h2>
+        <button type="button" class="btn" data-close>Close</button>
+      </div>
+      <div id="preview-wait">
+        <canvas id="preview-canvas" width="640" height="360"></canvas>
+        <div class="bar big"><i id="preview-bar"></i></div>
+        <p class="hint">Making a short preview&hellip;</p>
+      </div>
+      <div id="preview-player"></div>
+      <button type="button" class="btn" id="preview-again" data-icon="play" hidden>Play again</button>
+    </div>
+  </div>
+
+  <!-- My fusions -->
+  <div class="modal" id="modal-menu" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>My fusions</h2>
+        <button type="button" class="btn" data-close>Close</button>
+      </div>
+      <p class="hint">Everything is saved on this phone by itself as you work.</p>
+      <div id="project-list"></div>
+      <button type="button" class="btn primary big" id="btn-new" data-icon="plus">Start a new fusion</button>
+      <details class="more plain">
+        <summary>Backup</summary>
+        <p class="hint">A backup file holds the song list, trims and joins of this fusion (not the videos). Use it to move a fusion to another phone.</p>
+        <div class="row wrap">
+          <button type="button" class="btn" id="btn-backup" data-icon="download">Save a backup file</button>
+          <button type="button" class="btn" id="btn-restore" data-icon="folder">Open a backup file</button>
+        </div>
+        <input type="file" id="pick-backup" accept=".json,application/json" hidden>
+      </details>
+    </div>
+  </div>
+
+  <!-- Help -->
+  <div class="modal" id="modal-help" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>How to use Fusion Maker</h2>
+        <button type="button" class="btn" data-close>Close</button>
+      </div>
+      <ol class="help-steps">
+        <li><b>Songs.</b> Tap <b>Choose videos</b> and pick your karaoke videos. Use the arrows to put them in order.</li>
+        <li><b>Trim.</b> Tap <b>Trim</b> on a song. Play it, tap <b>Start here</b> and <b>End here</b>, then <b>Done</b>.</li>
+        <li><b>Joins.</b> Choose how one song changes to the next, for example a smooth blend.</li>
+        <li><b>Finish.</b> Choose <b>Video</b> or <b>Sound only</b>, tap <b>Make my fusion</b> and wait. Then tap <b>Save to this phone</b>.</li>
+      </ol>
+      <p class="hint">While the fusion is being made, keep this page open and the screen on. A long fusion can take several minutes.</p>
+      <p class="hint">Works in Chrome on Android phones and in Safari on iPhones with iOS 26 or newer. Your videos never leave the phone.</p>
+    </div>
+  </div>
+
+  <!-- Question box -->
+  <div class="modal top" id="modal-ask" hidden>
+    <div class="sheet small">
+      <h2 id="ask-title"></h2>
+      <p id="ask-text" class="hint keep-lines"></p>
+      <div class="row end">
+        <button type="button" class="btn" id="ask-no">Cancel</button>
+        <button type="button" class="btn primary" id="ask-yes">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

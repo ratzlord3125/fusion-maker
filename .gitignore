@@ -1,0 +1,6 @@
+# Only the docs/ folder is the website. Nothing below should ever be pushed.
+node_modules/
+data/
+.dev/
+.claude/
+*.log
